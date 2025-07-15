@@ -1,3 +1,14 @@
+# Arizona RP fork
+
+### Changes
+
+- Disabled "Remember this choice" checkbox in device selection
+- Add russian translation for device selection
+
+
+
+-------------------------------------------------------------------------------------------------------------------
+
 # SilentPatch
 
 <p align="center">

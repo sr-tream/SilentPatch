@@ -2746,7 +2746,7 @@ namespace NewResolutionSelectionDialog
 			}
 
 			HMODULE hGameModule = GetModuleHandle(nullptr);
-			SendMessage(window, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(LoadIcon(hGameModule, MAKEINTRESOURCE(100))));
+			// SendMessage(window, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(LoadIcon(hGameModule, MAKEINTRESOURCE(100))));
 			CreateNewButtonTooltip(hGameModule, window);
 
 			// Return TRUE instead of FALSE on init, as we removed a manual SetFocus from the init function
