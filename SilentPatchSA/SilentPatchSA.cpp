@@ -5311,25 +5311,28 @@ BOOL InjectDelayedPatches_NewBinaries()
 		// Fix text background padding not scaling to resolution
 		// Debugged by Wesser
 		// Moved here for compatibility with wshps.asi
-		try
+		if (GetModuleHandleA("samp") == nullptr)
 		{
-			using namespace TextRectPaddingScalingFixes;
+			try
+			{
+				using namespace TextRectPaddingScalingFixes;
 
-			auto processCurrentString = get_pattern("E8 ? ? ? ? DD 05 ? ? ? ? 8B 4D 08");
+				auto processCurrentString = get_pattern("E8 ? ? ? ? DD 05 ? ? ? ? 8B 4D 08");
 
-			// In new binaries, 4.0f is shared for width and height.
-			// Make height determine the scale, so it works nicer in widescreen.
-			auto paddingSize = pattern("DD 05 ? ? ? ? DC E9 D9 C9 D9 19").count(2);
-			std::array<double**, 3> paddingYSizes = {
-				get_pattern<double*>("D8 CA DD 05 ? ? ? ? DC C1", 2 + 2),
-				paddingSize.get(0).get<double*>(2),
-				paddingSize.get(1).get<double*>(2),
-			};
+				// In new binaries, 4.0f is shared for width and height.
+				// Make height determine the scale, so it works nicer in widescreen.
+				auto paddingSize = pattern("DD 05 ? ? ? ? DC E9 D9 C9 D9 19").count(2);
+				std::array<double**, 3> paddingYSizes = {
+					get_pattern<double*>("D8 CA DD 05 ? ? ? ? DC C1", 2 + 2),
+					paddingSize.get(0).get<double*>(2),
+					paddingSize.get(1).get<double*>(2),
+				};
 
-			HookEach_PaddingYSize_Double(paddingYSizes, PatchDouble);
-			InterceptCall(processCurrentString, orgProcessCurrentString, ProcessCurrentString_Scale_NewBinaries<paddingYSizes.size()>);
+				HookEach_PaddingYSize_Double(paddingYSizes, PatchDouble);
+				InterceptCall(processCurrentString, orgProcessCurrentString, ProcessCurrentString_Scale_NewBinaries<paddingYSizes.size()>);
+			}
+			TXN_CATCH();
 		}
-		TXN_CATCH();
 
 
 		// Fix credits not scaling to resolution
