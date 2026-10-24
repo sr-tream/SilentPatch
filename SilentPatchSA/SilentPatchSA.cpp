@@ -1951,6 +1951,27 @@ namespace StaticShadowAlphaFix
 // ============= Disable building pipeline for skinned objects (like parachute) =============
 namespace SkinBuildingPipelineFix
 {
+	static bool useArizonaFogFix = false;
+	static IDirect3DDevice9* (*getCurrentD3DDevice)();
+	static RpAtomic* RenderSkinnedAtomic_NoSAMPFog(RpAtomic* atomic)
+	{
+		IDirect3DDevice9* device = getCurrentD3DDevice != nullptr ? getCurrentD3DDevice() : nullptr;
+		DWORD fogEnabled;
+		if (device == nullptr || FAILED(device->GetRenderState(D3DRS_FOGENABLE, &fogEnabled)))
+		{
+			return AtomicDefaultRenderCallBack(atomic);
+		}
+
+		// SA-MP changes device fog directly; touching only the RW cache cannot disable it.
+		const bool fogDisabled = SUCCEEDED(device->SetRenderState(D3DRS_FOGENABLE, FALSE));
+		RpAtomic* result = AtomicDefaultRenderCallBack(atomic);
+		if (fogDisabled)
+		{
+			device->SetRenderState(D3DRS_FOGENABLE, fogEnabled);
+		}
+		return result;
+	}
+
 	static RpAtomic* (*orgCustomBuildingDNPipeline_CustomPipeAtomicSetup)(RpAtomic* atomic);
 	static RpAtomic* CustomBuildingDNPipeline_CustomPipeAtomicSetup_Skinned(RpAtomic* atomic)
 	{
@@ -1958,6 +1979,11 @@ namespace SkinBuildingPipelineFix
 		RpAtomicGetPipeline(atomic, &pipeline);
 		if (pipeline != nullptr && pipeline->pluginId == rwID_SKINPLUGIN)
 		{
+			const auto renderCallback = RpAtomicGetRenderCallBack(atomic);
+			if (useArizonaFogFix && (renderCallback == nullptr || renderCallback == reinterpret_cast<RpAtomicCallBackRender>(varAtomicDefaultRenderCallBack)))
+			{
+				RpAtomicSetRenderCallBack(atomic, RenderSkinnedAtomic_NoSAMPFog);
+			}
 			return atomic;
 		}
 
@@ -4221,6 +4247,7 @@ BOOL InjectDelayedPatches_10()
 		const bool		bSARender = moduleList.Get(L"SARender") != nullptr;
 		const bool		bOutfit = moduleList.Get(L"outfit") != nullptr;
 		const bool		bSAMPGraphicsRestore = moduleList.Get(L"SAMPGraphicRestore") != nullptr;
+		const bool		bArizona = moduleList.Get(L"arizona") != nullptr;
 
 		if ( bSAMP )
 		{
@@ -4660,9 +4687,15 @@ BOOL InjectDelayedPatches_10()
 
 		// Disable building pipeline for skinned objects (like parachute)
 		// SAMP Graphics Restore fixes the bug preventing this fix from working right
-		if (!bSAMP || bSAMPGraphicsRestore)
+		// Arizona's loader only fixes SA-MP fog for the stock parachute; cover custom skins too.
+		if (!bSAMP || bSAMPGraphicsRestore || bArizona)
 		{
 			using namespace SkinBuildingPipelineFix;
+			useArizonaFogFix = bArizona;
+			if (useArizonaFogFix)
+			{
+				getCurrentD3DDevice = reinterpret_cast<IDirect3DDevice9*(*)()>(0x7F9D50);
+			}
 
 			InterceptCall(0x5D7F1E, orgCustomBuildingDNPipeline_CustomPipeAtomicSetup, CustomBuildingDNPipeline_CustomPipeAtomicSetup_Skinned);
 		}
